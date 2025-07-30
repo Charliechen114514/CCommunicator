@@ -1,7 +1,7 @@
 #include "SessionHub.h"
 #include "PeerConnection.h"
 #include "SessionInfo.h"
-
+#include "core/ConnectionUtils.h"
 SessionHub::SessionHub(const SessionInfo& localName, QObject* parent)
     : QObject(parent)
     , localInfo(localName) {
@@ -16,7 +16,8 @@ std::vector<int> SessionHub::running_ports() const {
     return res;
 }
 
-Session* SessionHub::createSessionActive(PeerConnection* pc, const SessionInfo& info) {
+Session* SessionHub::createSessionActive(const SessionInfo& info, const PeerInfo& peers) {
+    PeerConnection* pc = new PeerConnection(this);
     auto* s = new Session(pc, info, this);
     sessions_containers.insert(s, s);
     idmaps.insert(pc->uuid(), s);
@@ -36,10 +37,12 @@ Session* SessionHub::createSessionActive(PeerConnection* pc, const SessionInfo& 
     connect(s, &Session::fileReceived, this, [this, s](const QString& text) {
         emit this->fileReceived(s, text);
     });
+    pc->connectToPeer(peers);
     return s;
 }
 
-Session* SessionHub::attachSessionPassive(PeerConnection* pc) {
+Session* SessionHub::passiveSessionListen() {
+    PeerConnection* pc = new PeerConnection(this);
     auto* s = new Session(pc, localInfo, this);
     sessions_containers.insert(s, s);
     idmaps.insert(pc->uuid(), s);
@@ -58,6 +61,17 @@ Session* SessionHub::attachSessionPassive(PeerConnection* pc) {
     connect(s, &Session::fileReceived, this, [this, s](const QString& text) {
         emit this->fileReceived(s, text);
     });
+
+    auto port = PortUtils::generate(1024, 65535, running_ports());
+    bool ok = pc->availableSelfListen({ port });
+    if (!ok) {
+        qWarning() << "Failed to listen on port" << port;
+        s->deleteLater();
+    }
+    connect(pc, &PeerConnection::connected,
+            this, &SessionHub::passiveSessionListen);
+    qInfo() << "Listening at port:" << port;
+    emit next_available_port(port);
     return s;
 }
 

@@ -1,14 +1,14 @@
 #include "CommunicateMainWindow.h"
-#include "PeerConnection.h"
-#include "core/ConnectionUtils.h"
+#include "NetInfo.h"
 #include "core/historyContainers/HistoryContainers.h"
 #include "core/sessions/Session.h"
 #include "core/sessions/SessionHub.h"
+#include "settings/SettingsWidget.h"
 #include "ui/communication_main/HistoryManagerSchedular.h"
 #include "ui/connectors/ConnectorsWidget.h"
-#include "ui/settings/InfoWidget.h"
+#include "ui/selfInfo/InfoWidget.h"
 #include "ui_CommunicateMainWindow.h"
-#include <QTimer>
+
 CommunicateMainWindow::CommunicateMainWindow(QWidget* parent)
     : QMainWindow(parent)
     , ui(new Ui::CommunicateMainWindow) {
@@ -24,12 +24,13 @@ CommunicateMainWindow::CommunicateMainWindow(QWidget* parent)
     init_connector_page();
     init_settings_page();
 
-    refresh_for_listening();
+    sessionHub->passiveSessionListen();
 }
 
 void CommunicateMainWindow::init_message_page() {
     router.insert(ToolsEnums::Functionality::MESSAGE,
                   ui->message_main_page);
+    ui->chatMainPanel->setEditWidgetEditable(false);
     connect(ui->chatListPanel, &ChatListPanel::currentContactChanged, this,
             &CommunicateMainWindow::onContactChanged);
     connect(ui->chatMainPanel, &ChatMainPanel::sendMessage,
@@ -41,11 +42,20 @@ void CommunicateMainWindow::init_self_page() {
     router.insert(ToolsEnums::Functionality::MINE,
                   info_page);
     ui->stackedWidget->addWidget(info_page);
-    connect(this, &CommunicateMainWindow::next_available_port,
+    connect(sessionHub, &SessionHub::next_available_port,
             info_page, &InfoWidget::show_current_port);
 }
 
 void CommunicateMainWindow::init_settings_page() {
+    settings_widget = new SettingsWidget(this);
+    settings_widget->register_localInfo(local_info);
+    router.insert(ToolsEnums::Functionality::SETTINGS,
+                  settings_widget);
+    ui->stackedWidget->addWidget(settings_widget);
+    connect(settings_widget, &SettingsWidget::nickNameChanged,
+            this, [this](const QString& name) {
+                local_info.nickName = name;
+            });
 }
 
 void CommunicateMainWindow::init_connector_page() {
@@ -68,27 +78,10 @@ void CommunicateMainWindow::init_history_manager() {
 void CommunicateMainWindow::init_session_hubs() {
     sessionHub = new SessionHub(local_info, this);
     connect(sessionHub, &SessionHub::sessionReady, this,
-            [this](Session* s, const SessionInfo& sessionInfo) {
-                QString name = sessionInfo.nickName;
-                qInfo() << "Ok Connected" << ", With name!"
-                        << name << ", target connection port" << s->peerInfo().second;
-                history_manager->createHistorySession(s);
-                ui->chatListPanel->append_context(s, { name, s->sessionID(), "Hello!", QDateTime::currentDateTime(), 1 });
-                ui->chatMainPanel->setTitle(name);
-                ui->chatMainPanel->setSessionID(s->sessionID());
-                ui->chatMainPanel->appendMessage("Hello", false, QPixmap());
-            });
+            &CommunicateMainWindow::process_session_ready);
 
     connect(sessionHub, &SessionHub::textReceived, this,
-            [&](Session* s, const QString& text) {
-                auto history = history_manager->queryHistory(s);
-                if (!history) {
-                    qCritical() << "Can not resume history! all communications will not be resumed!";
-                } else {
-                    history->enQueueMessage(text, false, MetaMessages::AcceptableType::PlainMessage);
-                }
-                ui->chatMainPanel->appendMessage(text, false, pixmap);
-            });
+            &CommunicateMainWindow::process_text_received);
 }
 
 void CommunicateMainWindow::onContactChanged(Session* session) {
@@ -103,7 +96,6 @@ void CommunicateMainWindow::onContactChanged(Session* session) {
 void CommunicateMainWindow::onSend(const QString& text) {
     ui->chatMainPanel->appendMessage(text, true, pixmap);
     QString id = ui->chatMainPanel->getCurrentSessionID();
-    // PeerConnection* coon = mappings.value(id);
     Session* send_to = sessionHub->queryFromUuid(id);
 
     auto history = history_manager->queryHistory(send_to);
@@ -130,38 +122,35 @@ void CommunicateMainWindow::switch_page(ToolsEnums::Functionality enumType) {
     }
 }
 
-void CommunicateMainWindow::refresh_for_listening() {
-    if (!passive_listen) {
-        passive_listen = new PeerConnection(this);
-        // init the sessions
-        sessionHub->attachSessionPassive(passive_listen);
-        auto port = PortUtils::generate(1024, 65535, sessionHub->running_ports());
-        bool ok = passive_listen->availableSelfListen({ port });
-        if (!ok) {
-            qWarning() << "Failed to listen on port" << port;
-            return;
-        }
-        connect(passive_listen, &PeerConnection::connected,
-                this, &CommunicateMainWindow::onPassiveConnected);
-        qInfo() << "Listening at port:" << port;
-        emit next_available_port(port);
-    }
+void CommunicateMainWindow::process_session_ready(Session* s, const SessionInfo& sessionInfo) {
+    QString name = sessionInfo.nickName;
+    qInfo() << "Ok Connected" << ", With name!"
+            << name << ", target connection port" << s->peerInfo().second;
+    history_manager->createHistorySession(s);
+    ui->chatListPanel->append_context(s, { name, s->sessionID(), "Hello!", QDateTime::currentDateTime(), 1 });
+    ui->chatMainPanel->setCommunicateStatus(CommunicatableStatus::ONLINE);
+    ui->chatMainPanel->setEditWidgetEditable(true);
+    ui->chatMainPanel->setTitle(name);
+    ui->chatMainPanel->setSessionID(s->sessionID());
+    ui->chatMainPanel->appendMessage("Hello", false, QPixmap());
 }
 
-void CommunicateMainWindow::onPassiveConnected() {
-    qInfo() << "Passive side connected!";
-    passive_listen = nullptr;
-    refresh_for_listening();
+void CommunicateMainWindow::process_text_received(Session* s, const QString& text) {
+    auto history = history_manager->queryHistory(s);
+    if (!history) {
+        qCritical() << "Can not resume history! all communications will not be resumed!";
+    } else {
+        history->enQueueMessage(text, false, MetaMessages::AcceptableType::PlainMessage);
+    }
+    ui->chatMainPanel->appendMessage(text, false, pixmap);
 }
 
 void CommunicateMainWindow::process_new_connections(const QString& name, const QString& ip, const int port) {
     qDebug() << "UI has requested for connection positive: " << ip << " " << port;
-    PeerConnection* new_positive_connection = new PeerConnection(this);
-    sessionHub->createSessionActive(new_positive_connection, local_info);
     PeerInfo info;
     info.host_address = ip;
     info.target_port = port;
-    new_positive_connection->connectToPeer(info);
+    sessionHub->createSessionActive(local_info, info);
 }
 
 CommunicateMainWindow::~CommunicateMainWindow() {

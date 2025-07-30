@@ -7,21 +7,21 @@
 #include <QMap>
 #include <QObject>
 #include <QPointer>
+struct PeerInfo;
 class SessionHub : public QObject {
     Q_OBJECT
 public:
     explicit SessionHub(const SessionInfo& localName, QObject* parent = nullptr);
     ~SessionHub() override = default;
     std::vector<int> running_ports() const;
-    Session* createSessionActive(PeerConnection* pc, const SessionInfo &info);
-    Session* attachSessionPassive(PeerConnection* pc);
+    Session* createSessionActive(const SessionInfo& info, const PeerInfo& peers);
+    Session* passiveSessionListen();
     Session* queryFromUuid(const QString& uuid);
 
 signals:
-    // 名字交换完成，Session 准备就绪（含 remoteName）
+    void next_available_port(const int port);
     void sessionReady(Session* s, const SessionInfo& remoteName);
 
-    // 大数据通道状态、进度、错误等
     void sendProgress(Session* s, quint64 sent, quint64 total);
     void receiveProgress(Session* s, const QString& fileId, quint64 received, quint64 total);
     void disconnected(Session* s);

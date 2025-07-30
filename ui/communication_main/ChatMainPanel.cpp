@@ -102,6 +102,20 @@ void ChatMainPanel::setCommunicateStatus(CommunicatableStatus communicatable) {
 
     dotStatus->setStyleSheet(status_stylesheet);
     statueIndicator->setText(status_text);
+
+    if (communicatable != communicate_status) {
+        communicate_status = communicatable;
+        emit communicatableChanged(communicate_status);
+    }
+}
+
+void ChatMainPanel::setEditWidgetEditable(bool editable) {
+    input_widget->setEnabled(editable);
+    input_widget->setVisible(editable);
+}
+
+bool ChatMainPanel::editWidgetEditable() const {
+    return input_widget->isEnabled();
 }
 
 void ChatMainPanel::setSessionID(const QString& session_id) {
@@ -136,7 +150,7 @@ void ChatMainPanel::init_header() {
     hl->addWidget(statueIndicator, 1, Qt::AlignVCenter);
     hl->addStretch();
 
-    for (const auto& each : { "📞", "📷", "🖥️", "🔍", "＋", "⋯" }) {
+    for (const auto& each : HEADER_ICON) {
         addIconBtn(each, this, hl);
     }
     header->setStyleSheet("background:#FFFFFF;"
@@ -171,7 +185,7 @@ void ChatMainPanel::init_input_widegt() {
     vb->setSpacing(6);
 
     auto* tools = new QHBoxLayout;
-    for (const auto& each : { "☺", "✂", "📁", "🖼", "📎", "📹", "🔇", "🎤" }) {
+    for (const auto& each : TOOL_ICON) {
         addIconBtn(each, this, tools);
     }
     tools->addStretch();

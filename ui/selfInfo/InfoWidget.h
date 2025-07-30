@@ -14,7 +14,6 @@ public slots:
     void show_current_port(const int port);
 
 private:
-    QLabel* titleLabel { nullptr };
     QLabel* nameLabel { nullptr };
     QLabel* ipLabel { nullptr };
     QLabel* portTitle { nullptr };

@@ -11,7 +11,7 @@ InfoWidget::InfoWidget(QWidget* parent)
     root->setContentsMargins(20, 20, 20, 20);
     root->setSpacing(16);
 
-    titleLabel = new QLabel("Local Info", this);
+    QLabel* titleLabel = new QLabel("Local Info", this);
     titleLabel->setStyleSheet("font-size:44px; font-weight:600;");
     root->addWidget(titleLabel);
     infoTable = new QTableWidget(2, 2);

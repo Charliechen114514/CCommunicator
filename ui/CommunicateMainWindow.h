@@ -1,7 +1,7 @@
 #ifndef COMMUNICATEMAINWINDOW_H
 #define COMMUNICATEMAINWINDOW_H
 #include "core/sessions/SessionInfo.h"
-#include "ui/ToolsEnum.h"
+#include "ui/ToolSide/ToolsEnum.h"
 #include <QMainWindow>
 #include <QMap>
 
@@ -15,6 +15,7 @@ class SessionHub;
 class InfoWidget;
 class Session;
 class HistoryManagerSchedular;
+class SettingsWidget;
 class CommunicateMainWindow : public QMainWindow {
 	Q_OBJECT
 
@@ -22,16 +23,14 @@ public:
     CommunicateMainWindow(QWidget* parent = nullptr);
 	~CommunicateMainWindow();
 
-signals:
-    void next_available_port(const int port);
-
 private slots:
     void onContactChanged(Session* session);
     void onSend(const QString& text);
     void switch_page(ToolsEnums::Functionality enumType);
-    void refresh_for_listening();
     void process_new_connections(const QString& name, const QString& ip, const int port);
-    void onPassiveConnected();
+
+    void process_session_ready(Session* s, const SessionInfo& sessionInfo);
+    void process_text_received(Session* s, const QString& text);
 
 private:
     void init_message_page();
@@ -45,9 +44,9 @@ private:
     QPixmap pixmap;
     QMap<ToolsEnums::Functionality, QWidget*> router;
     InfoWidget* info_page;
+    SettingsWidget* settings_widget;
     SessionInfo local_info;
     SessionHub* sessionHub;
     HistoryManagerSchedular* history_manager;
-    PeerConnection* passive_listen { nullptr };
 };
 #endif // COMMUNICATEMAINWINDOW_H

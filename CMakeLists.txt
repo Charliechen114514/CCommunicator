@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.19)
 project(CCIMXCommunicate LANGUAGES CXX)
 
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Widgets Network)
+find_package(Qt6 REQUIRED COMPONENTS Widgets)
 
 qt_standard_project_setup()
 
@@ -22,22 +23,27 @@ set(core_src
     core/historyContainers/HistoryContainers.cpp)
 
 set(ui_src
-    CommunicateMainWindow.cpp
-    CommunicateMainWindow.h
-    CommunicateMainWindow.ui
-    ui/ToolPanel.h ui/ToolPanel.cpp
-    ui/ToolsEnum.h
-    ui/communication_main/ChatListPanel.h ui/communication_main/ChatListPanel.cpp
-    ui/communication_main/ChatBubble.h ui/communication_main/ChatBubble.cpp
-    ui/communication_main/ChatMainPanel.h ui/communication_main/ChatMainPanel.cpp
-    ui/settings/InfoWidget.h ui/settings/InfoWidget.cpp
+    ui/CommunicateMainWindow.cpp
+    ui/CommunicateMainWindow.h
+    ui/CommunicateMainWindow.ui
+    ui/ToolSide/ToolPanel.h ui/ToolSide/ToolPanel.cpp
+    ui/ToolSide/ToolsEnum.h
+    ui/communication_main/ChatListPanel.h
+    ui/communication_main/ChatListPanel.cpp
+    ui/communication_main/ChatBubble.h
+    ui/communication_main/ChatBubble.cpp
+    ui/communication_main/ChatMainPanel.h
+    ui/communication_main/ChatMainPanel.cpp
+    ui/selfInfo/InfoWidget.h ui/selfInfo/InfoWidget.cpp
     ui/connectors/ConnectorsWidget.h ui/connectors/ConnectorsWidget.cpp
     ui/connectors/ConnectorDelegate.h ui/connectors/ConnectorDelegate.cpp
     ui/connectors/ConnectorEnumType.h
     ui/connectors/AddPanel.h ui/connectors/AddPanel.cpp
     ui/communication_main/CommunicatableStatus.h
     ui/communication_main/HistoryManagerSchedular.h
-    ui/communication_main/HistoryManagerSchedular.cpp)
+    ui/communication_main/HistoryManagerSchedular.cpp
+    ui/settings/SettingsWidget.h
+    ui/settings/SettingsWidget.cpp)
 
 qt_add_executable(CCIMXCommunicate
     WIN32 MACOSX_BUNDLE
@@ -54,8 +60,8 @@ target_link_libraries(CCIMXCommunicate
         DataProtocolizedController
         PeerConnectionCore
 )
-
-target_include_directories(CCIMXCommunicate PRIVATE . ./ui ./ui/communication_main)
+target_include_directories(CCIMXCommunicate PRIVATE
+    . ./ui ./ui/communication_main ./ui/ToolSide)
 
 include(GNUInstallDirs)
 
